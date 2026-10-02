@@ -23,17 +23,17 @@
     "url": "git+https://github.com/javadhamed-ctrl/opencode-voice-universal.git"
   },
   "files": [
-    "index.js",
+    "index.ts",
     "lib"
   ],
   "type": "module",
-  "main": "index.js",
+  "main": "index.ts",
   "exports": {
     ".": {
-      "import": "./index.js"
+      "import": "./index.ts"
     },
     "./tui": {
-      "import": "./index.js"
+      "import": "./index.ts"
     }
   },
   "scripts": {
