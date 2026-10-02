@@ -331,14 +331,14 @@ export default {
     ];
 
     // Register all commands
-    const sttCommands = registerSTT(api, kv, complete, prompts, options, logger);
-    const ttsCommands = registerTTS(api, kv, complete, prompts, logger);
+    const sttCommandsResult = registerSTT(api, kv, complete, prompts, options, logger);
+    const ttsCommandsResult = registerTTS(api, kv, complete, prompts, logger);
     const modeCommandsWithHandler = modeCommands.map(cmd => ({
       ...cmd,
       onSelect: cmd.onSelect
     }));
 
-    api.command.register(() => [...sttCommands, ...ttsCommands, ...modeCommandsWithHandler]);
+    api.command.register(() => [...sttCommandsResult, ...ttsCommandsResult, ...modeCommandsWithHandler]);
   },
 };
 

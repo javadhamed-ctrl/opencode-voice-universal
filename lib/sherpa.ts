@@ -381,7 +381,7 @@ class SherpaEngine {
     };
   }
 
-  async transcribeStreaming(audioChunks: AsyncIterable<Float32Array>, sampleRate: number = 16000): AsyncGenerator<STTResult> {
+  async *transcribeStreaming(audioChunks: AsyncIterable<Float32Array>, sampleRate: number = 16000): AsyncGenerator<STTResult> {
     if (!this.sttRecognizer) throw new Error("STT model not loaded");
 
     const stream = this.sttRecognizer.createStream();

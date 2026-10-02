@@ -8,7 +8,7 @@ import path from "node:path";
 import os from "node:os";
 import { getSherpaEngine, SherpaEngine, AudioBuffer, VoiceInfo } from "./sherpa.js";
 import { getSessionTitle } from "./session.js";
-import { processMixedText, concatAudio } from "./mixed-lang.js";
+import { processMixedLanguage, concatAudio } from "./mixed-lang.js";
 
 // Load voice registry
 const VOICE_REGISTRY_PATH = path.join(os.homedir(), ".config", "opencode", "voice", "voice-registry.json");
@@ -240,7 +240,7 @@ export function registerTTS(api, kv, complete, prompts, logger) {
       const engine = getSherpa();
       await loadTTSModel(kv.get("tts.model") || currentTTSModel);
 
-      const segments = processMixedText(text, {
+      const segments = processMixedLanguage(text, {
         enabled: true,
         primaryLang: "en-US",
         secondaryLangs: ["fa-IR"],

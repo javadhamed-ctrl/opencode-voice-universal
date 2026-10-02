@@ -484,7 +484,7 @@ function normalizeNumbers(text: string, lang: string): string {
   return text;
 }
 
-function processMixedLanguage(text: string, options: Partial<MixedLangOptions> = {}): TextSegment[] {
+export function processMixedLanguage(text: string, options: Partial<MixedLangOptions> = {}): TextSegment[] {
   const opts = { ...DEFAULT_OPTIONS, ...options };
   const rules = { ...TECH_TERMS_PERSIAN_PRONUNCIATION, ...loadCustomRules(), ...opts.customRules };
 

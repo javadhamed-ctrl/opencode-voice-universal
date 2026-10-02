@@ -47,6 +47,7 @@
     "postinstall": "node scripts/postinstall.js"
   },
   "devDependencies": {
+    "esbuild": "^0.28.2",
     "oxfmt": "0.50.0",
     "oxlint": "1.65.0"
   },

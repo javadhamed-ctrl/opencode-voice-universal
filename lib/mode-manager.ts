@@ -396,6 +396,18 @@ class VoiceModeManager extends EventEmitter {
   }
 }
 
+// ==================== Factory Function ====================
+
+function registerModeManager(
+  api: any,
+  kv: any,
+  logger: any,
+  config: Partial<VoiceModeConfig> = {}
+): VoiceModeManager {
+  const modeManager = new VoiceModeManager(api, kv, logger, config);
+  return modeManager;
+}
+
 // Browser AudioWorklet for VAD
 const VAD_PROCESSOR_CODE = `
 class VADProcessor extends AudioWorkletProcessor {
@@ -432,5 +444,6 @@ export {
   VoiceMode,
   DEFAULT_CONFIG,
   VoiceModeManager,
+  registerModeManager,
   VAD_PROCESSOR_CODE
 };
