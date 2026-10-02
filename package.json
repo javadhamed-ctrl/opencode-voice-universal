@@ -1,22 +1,26 @@
 {
-  "name": "@renjfk/opencode-voice",
-  "version": "0.1.0",
-  "description": "Speech-to-text and text-to-speech for OpenCode. Record voice prompts with whisper-cpp, hear responses via Piper TTS, with LLM normalization through any OpenAI-compatible endpoint.",
+  "name": "@javadhamed-ctrl/opencode-voice-universal",
+  "version": "1.0.0",
+  "description": "Universal voice interface for OpenCode with pluggable STT/TTS providers. Supports sherpa-onnx (Shenava Koochik STT + Piper TTS), Whisper, Piper, Edge TTS, ElevenLabs, and more. Features: multi-language, wake word, auto/manual modes, mixed-language synthesis.",
   "keywords": [
     "opencode",
-    "piper",
-    "plugin",
+    "voice",
     "speech-to-text",
     "stt",
     "text-to-speech",
     "tts",
-    "voice",
-    "whisper"
+    "sherpa-onnx",
+    "shenava",
+    "piper",
+    "whisper",
+    "wake-word",
+    "multilingual"
   ],
   "license": "MIT",
+  "author": "Javad Hamed <javadhamed@gmail.com>",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/renjfk/opencode-voice.git"
+    "url": "git+https://github.com/javadhamed-ctrl/opencode-voice-universal.git"
   },
   "files": [
     "index.js",
@@ -38,10 +42,21 @@
     "fmt:fix": "npx oxfmt --write .",
     "test": "node --test",
     "check": "npm run lint && npm run fmt",
-    "prepack": "npm run check"
+    "prepack": "npm run check",
+    "download:models": "node scripts/download-models.cjs",
+    "postinstall": "node scripts/postinstall.js"
   },
   "devDependencies": {
     "oxfmt": "0.50.0",
     "oxlint": "1.65.0"
+  },
+  "dependencies": {
+    "sherpa-onnx": "^1.10.0"
+  },
+  "optionalDependencies": {
+    "@xenova/transformers": "^2.17.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
   }
 }

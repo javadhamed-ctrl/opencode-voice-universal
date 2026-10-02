@@ -1,0 +1,286 @@
+{
+  "version": "1.0",
+  "description": "Voice metadata registry for TTS providers. Each voice includes language, gender, age, style for filtering.",
+  "providers": {
+    "piper-tts": {
+      "name": "Piper TTS (Local, via sherpa-onnx)",
+      "type": "local",
+      "modelFormat": "single-speaker-per-file",
+      "voices": {
+        "fa_IR-gyro-medium": {
+          "name": "Gyro (Male, Adult)",
+          "language": "fa-IR",
+          "locale": "fa_IR",
+          "gender": "male",
+          "ageGroup": "adult",
+          "style": ["neutral"],
+          "sampleRate": 22050,
+          "description": "Persian male voice from ManaTTS dataset, natural and clear",
+          "modelFile": "vits-piper-fa_IR-gyro-medium.onnx",
+          "modelId": "piper-fa-gyro-medium"
+        },
+        "fa_IR-amir-medium": {
+          "name": "Amir (Male, Young Adult)",
+          "language": "fa-IR",
+          "locale": "fa_IR",
+          "gender": "male",
+          "ageGroup": "young",
+          "style": ["neutral", "friendly"],
+          "sampleRate": 22050,
+          "description": "Younger Persian male voice, friendly tone",
+          "modelFile": "vits-piper-fa_IR-amir-medium.onnx",
+          "modelId": "piper-fa-amir-medium"
+        },
+        "en_US-ryan-high": {
+          "name": "Ryan (Male, High Quality)",
+          "language": "en-US",
+          "locale": "en_US",
+          "gender": "male",
+          "ageGroup": "adult",
+          "style": ["professional", "clear"],
+          "sampleRate": 22050,
+          "description": "High quality English male voice",
+          "modelFile": "en_US-ryan-high.onnx",
+          "modelId": "piper-en-ryan-high"
+        },
+        "en_US-lessac-medium": {
+          "name": "Lessac (Male, Senior)",
+          "language": "en-US",
+          "locale": "en_US",
+          "gender": "male",
+          "ageGroup": "senior",
+          "style": ["calm", "neutral"],
+          "sampleRate": 22050,
+          "description": "Calm older male English voice",
+          "modelFile": "en_US-lessac-medium.onnx",
+          "modelId": "piper-en-lessac-medium"
+        },
+        "en_US-amy-low": {
+          "name": "Amy (Female, Low)",
+          "language": "en-US",
+          "locale": "en_US",
+          "gender": "female",
+          "ageGroup": "adult",
+          "style": ["soft", "gentle"],
+          "sampleRate": 22050,
+          "description": "Soft female English voice",
+          "modelFile": "en_US-amy-low.onnx",
+          "modelId": "piper-en-amy-low"
+        },
+        "en_GB-northern_english_male-medium": {
+          "name": "Northern English Male (Medium)",
+          "language": "en-GB",
+          "locale": "en_GB",
+          "gender": "male",
+          "ageGroup": "adult",
+          "style": ["british", "regional"],
+          "sampleRate": 22050,
+          "description": "British English with northern accent",
+          "modelFile": "en_GB-northern_english_male-medium.onnx",
+          "modelId": "piper-en-northern-male"
+        }
+      }
+    },
+    "kokoro-tts": {
+      "name": "Kokoro 82M (Multi-speaker, via sherpa-onnx)",
+      "type": "local",
+      "modelFormat": "multi-speaker-single-model",
+      "voices": {
+        "af_heart": {
+          "name": "Heart (Female US, Premium)",
+          "language": "en-US",
+          "locale": "en_US",
+          "gender": "female",
+          "ageGroup": "young",
+          "style": ["premium", "warm", "friendly", "expressive"],
+          "sampleRate": 24000,
+          "description": "Premium quality female US voice, Grade A",
+          "modelId": "vits-kokoro",
+          "styleVector": "af_heart"
+        },
+        "af_bella": {
+          "name": "Bella (Female US, Warm)",
+          "language": "en-US",
+          "locale": "en_US",
+          "gender": "female",
+          "ageGroup": "young",
+          "style": ["warm", "friendly", "approachable"],
+          "sampleRate": 24000,
+          "description": "Warm and friendly female US voice, Grade A-",
+          "modelId": "vits-kokoro",
+          "styleVector": "af_bella"
+        },
+        "af_nicole": {
+          "name": "Nicole (Female US, Professional)",
+          "language": "en-US",
+          "locale": "en_US",
+          "gender": "female",
+          "ageGroup": "adult",
+          "style": ["professional", "articulate"],
+          "sampleRate": 24000,
+          "description": "Professional and articulate female US voice, Grade B-",
+          "modelId": "vits-kokoro",
+          "styleVector": "af_nicole"
+        },
+        "af_aoede": {
+          "name": "Aoede (Female US, Melodic)",
+          "language": "en-US",
+          "locale": "en_US",
+          "gender": "female",
+          "ageGroup": "young",
+          "style": ["melodic", "smooth"],
+          "sampleRate": 24000,
+          "description": "Smooth and melodic female US voice, Grade C+",
+          "modelId": "vits-kokoro",
+          "styleVector": "af_aoede"
+        },
+        "af_sarah": {
+          "name": "Sarah (Female US, Casual)",
+          "language": "en-US",
+          "locale": "en_US",
+          "gender": "female",
+          "ageGroup": "young",
+          "style": ["casual", "approachable"],
+          "sampleRate": 24000,
+          "description": "Casual and approachable female US voice, Grade C+",
+          "modelId": "vits-kokoro",
+          "styleVector": "af_sarah"
+        },
+        "am_adam": {
+          "name": "Adam (Male US, Professional)",
+          "language": "en-US",
+          "locale": "en_US",
+          "gender": "male",
+          "ageGroup": "adult",
+          "style": ["professional", "clear"],
+          "sampleRate": 24000,
+          "description": "Professional male US voice",
+          "modelId": "vits-kokoro",
+          "styleVector": "am_adam"
+        },
+        "am_michael": {
+          "name": "Michael (Male US, Deep)",
+          "language": "en-US",
+          "locale": "en_US",
+          "gender": "male",
+          "ageGroup": "adult",
+          "style": ["deep", "calm", "authoritative"],
+          "sampleRate": 24000,
+          "description": "Deep, calm male US voice",
+          "modelId": "vits-kokoro",
+          "styleVector": "am_michael"
+        },
+        "am_fenrir": {
+          "name": "Fenrir (Male US, Strong)",
+          "language": "en-US",
+          "locale": "en_US",
+          "gender": "male",
+          "ageGroup": "adult",
+          "style": ["strong", "dynamic"],
+          "sampleRate": 24000,
+          "description": "Strong, dynamic male US voice",
+          "modelId": "vits-kokoro",
+          "styleVector": "am_fenrir"
+        },
+        "bf_emma": {
+          "name": "Emma (Female UK, British)",
+          "language": "en-GB",
+          "locale": "en_GB",
+          "gender": "female",
+          "ageGroup": "young",
+          "style": ["british", "clear", "elegant"],
+          "sampleRate": 24000,
+          "description": "Elegant British female voice",
+          "modelId": "vits-kokoro",
+          "styleVector": "bf_emma"
+        },
+        "bm_george": {
+          "name": "George (Male UK, British)",
+          "language": "en-GB",
+          "locale": "en_GB",
+          "gender": "male",
+          "ageGroup": "adult",
+          "style": ["british", "distinguished"],
+          "sampleRate": 24000,
+          "description": "Distinguished British male voice",
+          "modelId": "vits-kokoro",
+          "styleVector": "bm_george"
+        }
+      }
+    },
+    "edge-tts": {
+      "name": "Microsoft Edge TTS (Cloud, Free)",
+      "type": "cloud",
+      "modelFormat": "cloud-multi-speaker",
+      "requiresNetwork": true,
+      "voices": {
+        "fa-IR-DilaraNeural": {
+          "name": "Dilara (Female, Persian)",
+          "language": "fa-IR",
+          "locale": "fa_IR",
+          "gender": "female",
+          "ageGroup": "young",
+          "style": ["neutral", "formal", "cheerful", "empathetic"],
+          "sampleRate": 24000,
+          "description": "Microsoft neural Persian female, very natural",
+          "modelId": "edge-tts"
+        },
+        "fa-IR-FaridNeural": {
+          "name": "Farid (Male, Persian)",
+          "language": "fa-IR",
+          "locale": "fa_IR",
+          "gender": "male",
+          "ageGroup": "adult",
+          "style": ["neutral", "formal", "calm"],
+          "sampleRate": 24000,
+          "description": "Microsoft neural Persian male, natural",
+          "modelId": "edge-tts"
+        },
+        "en-US-AriaNeural": {
+          "name": "Aria (Female US)",
+          "language": "en-US",
+          "locale": "en_US",
+          "gender": "female",
+          "ageGroup": "young",
+          "style": ["neutral", "cheerful", "empathetic", "customerservice"],
+          "sampleRate": 24000,
+          "description": "Microsoft neural US female, versatile",
+          "modelId": "edge-tts"
+        },
+        "en-US-GuyNeural": {
+          "name": "Guy (Male US)",
+          "language": "en-US",
+          "locale": "en_US",
+          "gender": "male",
+          "ageGroup": "adult",
+          "style": ["neutral", "professional"],
+          "sampleRate": 24000,
+          "description": "Microsoft neural US male",
+          "modelId": "edge-tts"
+        },
+        "en-GB-LibbyNeural": {
+          "name": "Libby (Female UK)",
+          "language": "en-GB",
+          "locale": "en_GB",
+          "gender": "female",
+          "ageGroup": "young",
+          "style": ["neutral", "cheerful"],
+          "sampleRate": 24000,
+          "description": "Microsoft neural UK female",
+          "modelId": "edge-tts"
+        }
+      }
+    }
+  },
+  "defaultVoicePerLanguage": {
+    "fa-IR": "fa_IR-gyro-medium",
+    "en-US": "af_heart",
+    "en-GB": "bf_emma",
+    "auto": "af_heart"
+  },
+  "fallbackChain": {
+    "fa-IR": ["fa_IR-gyro-medium", "fa_IR-amir-medium", "fa-IR-DilaraNeural", "fa-IR-FaridNeural"],
+    "en-US": ["af_heart", "af_bella", "af_nicole", "am_adam", "en-US-AriaNeural", "en-US-GuyNeural"],
+    "en-GB": ["bf_emma", "bm_george", "en-GB-LibbyNeural"]
+  }
+}
