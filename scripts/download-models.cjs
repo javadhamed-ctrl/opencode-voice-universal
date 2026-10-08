@@ -27,7 +27,7 @@ const MODELS = {
     description: "Shenava Koochik INT8 Joiner (~1.4MB)"
   },
   "tokens.txt": {
-    url: "https://huggingface.co/Reza2kn/Shenava-Koochik-v1.5-RNNT-sherpa-onnx/resolve/main/tokens.txt",
+    url: "https://huggingface.co/Reza2kn/Shenava-Koochik-v1.5-RNNT-sherpa-onnx/raw/main/tokens.txt",
     size: 50 * 1024,
     description: "Shenava Tokens (~50KB)"
   },

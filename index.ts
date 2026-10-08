@@ -1,390 +1,317 @@
-/**
+﻿/**
  * opencode-voice-universal: Universal Voice Interface for OpenCode
- * 
- * Features:
- * - STT: sherpa-onnx (Shenava Koochik, Whisper, NeMo) + API fallback
- * - TTS: sherpa-onnx (Piper, VITS, Kokoro, Matcha) with mixed-language support
- * - Modes: AUTO (VAD always-listening), MANUAL (push-to-talk), OFF
- * - Wake Word: openwakeword (hey jarvis, jarvis, بیدار شو)
- * - Mixed-language: Persian + English in same paragraph
- * - Voice selection with preview
- * - Pluggable provider architecture
+ * Registers the voice_control tool (mode/status/settings management).
  */
 
-import fs from "node:fs";
-import os from "node:os";
-import { registerSTT } from "./lib/stt.js";
-import { registerTTS } from "./lib/tts.js";
-import { registerModeManager, VoiceModeManager } from "./lib/mode-manager.js";
-import { createClient } from "./lib/llm-client.js";
-import { createLogger } from "./lib/logger.js";
+import type { PluginInput, Hooks, ToolResult } from "@opencode-ai/plugin";
+import { z } from "zod";
+import * as fs from "node:fs";
+import * as path from "node:path";
+import { execFile } from "node:child_process";
 
-function loadPromptFile(filePath, logger, name) {
-  if (!filePath) return null;
-  const resolved = filePath.replace(/^~(?=\/|$)/, os.homedir());
-  try {
-    const prompt = fs.readFileSync(resolved, "utf-8").trim() || null;
-    logger?.log(
-      "plugin",
-      prompt ? `Loaded ${name} prompt: ${resolved}` : `Ignored empty ${name} prompt: ${resolved}`,
-      "debug",
+const PYTHON = "C:\\Python314\\python.exe";
+const HELPER = path.join(
+  process.env.USERPROFILE ?? ".",
+  ".config",
+  "opencode",
+  "voice",
+  "voice_helper.py"
+);
+const TMP = path.join(process.env.TEMP ?? ".", "opencode");
+
+function runHelper(
+  args: string[],
+  timeoutMs: number
+): Promise<Record<string, unknown>> {
+  return new Promise((resolve, reject) => {
+    const resultFile = path.join(TMP, `vh-${Date.now()}-${Math.random().toString(16).slice(2)}.json`);
+    const full = [...args, "--result", resultFile];
+    execFile(
+      PYTHON,
+      ["-X", "utf8", HELPER, ...full],
+      { timeout: timeoutMs, windowsHide: true, maxBuffer: 8 * 1024 * 1024 },
+      (err) => {
+        let data: Record<string, unknown> = {};
+        try {
+          data = JSON.parse(fs.readFileSync(resultFile, "utf-8"));
+        } catch {
+          data = { ok: false, error: err?.message ?? "no result file" };
+        } finally {
+          try { fs.unlinkSync(resultFile); } catch { /* ignore */ }
+        }
+        resolve(data);
+      }
     );
-    return prompt;
-  } catch (err) {
-    logger?.log("Plugin", `Failed to load ${name} prompt ${resolved}: ${err.message}`, "warn");
-    return null;
+  });
+}
+
+type VoiceMode = "off" | "manual" | "auto";
+
+type VoiceState = {
+  mode: VoiceMode;
+  pushToTalkKey: string;
+  holdToTalk: boolean;
+  wakeWordEngine: "disabled" | "openwakeword" | "porcupine";
+  wakeWordKeywords: string[];
+  wakeWordSensitivity: number;
+  vadSensitivity: number;
+  autoSubmit: boolean;
+  continuousListening: boolean;
+  ttsVoice: string;
+  sttModel: string;
+  primaryLang: string;
+  secondaryLangs: string[];
+};
+
+const STATE_FILE = path.join(
+  process.env.USERPROFILE ?? ".",
+  ".config",
+  "opencode",
+  "voice-state.json"
+);
+
+function defaultState(): VoiceState {
+  return {
+    mode: "manual",
+    pushToTalkKey: "ctrl+r",
+    holdToTalk: false,
+    wakeWordEngine: "disabled",
+    wakeWordKeywords: ["hey jarvis", "jarvis"],
+    wakeWordSensitivity: 0.6,
+    vadSensitivity: 0.5,
+    autoSubmit: true,
+    continuousListening: true,
+    ttsVoice: "fa_IR-gyro-medium",
+    sttModel: "shenava-koochik-int8",
+    primaryLang: "fa-IR",
+    secondaryLangs: ["en-US"],
+  };
+}
+
+function loadState(): VoiceState {
+  try {
+    const raw = fs.readFileSync(STATE_FILE, "utf-8");
+    return { ...defaultState(), ...JSON.parse(raw) };
+  } catch {
+    return defaultState();
   }
 }
 
-export default {
-  id: "opencode-voice-universal",
-  tui: async (api, options) => {
-    const { kv } = api;
-    const logger = createLogger(api.client);
-    logger.log("plugin", "Initializing opencode-voice-universal", "debug");
-    const { complete } = createClient(options, logger);
+function saveState(state: VoiceState): void {
+  try {
+    fs.mkdirSync(path.dirname(STATE_FILE), { recursive: true });
+    fs.writeFileSync(STATE_FILE, JSON.stringify(state, null, 2), "utf-8");
+  } catch {
+    // state persistence is best-effort
+  }
+}
 
-    const prompts = {
-      stt: loadPromptFile(options?.sttPrompt, logger, "STT"),
-      ttsAuto: loadPromptFile(options?.ttsAutoPrompt, logger, "TTS auto"),
-      ttsManual: loadPromptFile(options?.ttsManualPrompt, logger, "TTS manual"),
-    };
-
-    // Initialize mode manager
-    const modeManager = registerModeManager(api, kv, logger, {
-      mode: kv.get("voice.mode", "manual"),
+function describeState(state: VoiceState): string {
+  return JSON.stringify(
+    {
+      mode: state.mode,
+      pushToTalk: state.pushToTalkKey,
+      holdToTalk: state.holdToTalk,
       wakeWord: {
-        engine: kv.get("voice.wakeWord.engine", "disabled"),
-        keywords: kv.get("voice.wakeWord.keywords", ["hey jarvis", "jarvis", "بیدار شو"]),
-        sensitivity: kv.get("voice.wakeWord.sensitivity", 0.6),
-        customKeywords: kv.get("voice.wakeWord.customKeywords", {})
+        engine: state.wakeWordEngine,
+        keywords: state.wakeWordKeywords,
+        sensitivity: state.wakeWordSensitivity,
       },
       auto: {
-        vadSensitivity: kv.get("voice.auto.vadSensitivity", 0.5),
-        minSpeechDuration: kv.get("voice.auto.minSpeechDuration", 500),
-        maxSilenceDuration: kv.get("voice.auto.maxSilenceDuration", 2000),
-        autoSubmit: kv.get("voice.auto.autoSubmit", true),
-        continuousListening: kv.get("voice.auto.continuousListening", true)
+        vadSensitivity: state.vadSensitivity,
+        autoSubmit: state.autoSubmit,
+        continuousListening: state.continuousListening,
       },
-      manual: {
-        pushToTalkKey: kv.get("voice.manual.pushToTalkKey", "ctrl+r"),
-        holdToTalk: kv.get("voice.manual.holdToTalk", false),
-        doubleTapTimeout: kv.get("voice.manual.doubleTapTimeout", 300)
-      }
-    });
+      stt: { model: state.sttModel, language: state.primaryLang },
+      tts: { voice: state.ttsVoice },
+      mixedLanguage: {
+        primary: state.primaryLang,
+        secondary: state.secondaryLangs,
+      },
+    },
+    null,
+    2
+  );
+}
 
-    // Load STT and TTS
-    const sttCommands = registerSTT(api, kv, complete, prompts, options, logger);
-    const ttsCommands = registerTTS(api, kv, complete, prompts, logger);
+export default async function voicePlugin(
+  input: PluginInput,
+  options: Record<string, unknown> = {}
+): Promise<Hooks> {
+  const hooks: Hooks = {
+    tool: {
+      voice_listen: {
+        description:
+          "Record the microphone (default 5s) and transcribe the speech to text (Persian/English, sherpa-onnx). " +
+          "Returns recognized text. Use when the user speaks a voice command.",
+        args: {
+          duration: z
+            .number()
+            .optional()
+            .describe("Recording length in seconds (default 5, max 20)"),
+          vad: z
+            .boolean()
+            .optional()
+            .describe("Trim leading/trailing silence (default true)"),
+        },
+        async execute({ duration, vad }, ctx): Promise<ToolResult> {
+          const state = loadState();
+          if (state.mode === "off") {
+            return { title: "Voice mode OFF", output: "Voice mode is OFF. Switch to manual or auto first." };
+          }
+          const dur = Math.min(Math.max(duration ?? 5, 1), 20);
+          const n = Math.trunc(dur * 16000);
+          const pcm = path.join(TMP, `ot-${Date.now()}.wav`);
+          const rec = await runHelper(["record", "--out", pcm, "--duration", String(dur), "--vad"], 30000);
+          if (rec.ok !== true) {
+            return { title: "Record failed", output: String(rec.error ?? "unknown") };
+          }
+          const tr = await runHelper(["transcribe", "--wav", pcm, "--lang", "fa"], 60000);
+          try { fs.unlinkSync(pcm); } catch { /* ignore */ }
+          if (tr.ok !== true) {
+            return { title: "Transcribe failed", output: String(tr.error ?? "unknown") };
+          }
+          let text = String(tr.text ?? "").trim();
+          if (text === "") {
+            return { title: "No speech detected", output: "No speech was detected. Please speak after the tone and try again." };
+          }
+          return { title: "Voice transcript", output: text, metadata: { lang: "fa" } };
+        },
+      },
+      voice_speak: {
+        description:
+          "Synthesize text to speech (TTS) with a Persian (Piper fa_IR) or English voice and playback the audio. " +
+          "Use when the assistant wants to respond to the user by voice.",
+        args: {
+          text: z.string().describe("The text to speak aloud"),
+          voice: z
+            .string()
+            .optional()
+            .describe("Voice name: fa_IR-gyro-medium (Persian) or en_US-lessac-medium (English)"),
+          play: z
+            .boolean()
+            .optional()
+            .describe("Play the audio through speakers (default true)"),
+        },
+        async execute({ text, voice, play = true }, ctx): Promise<ToolResult> {
+          const state = loadState();
+          if (state.mode === "off") {
+            return { title: "Voice mode OFF", output: "Voice mode is OFF. Switch to manual or auto first." };
+          }
+          const wav = path.join(TMP, `ot-tts-${Date.now()}.wav`);
+          const sp = voice ?? state.ttsVoice;
+          const res = await runHelper(
+            ["speak", "--text", text, "--out", wav, "--voice", sp, ...(play ? ["--play"] : [])],
+            60000
+          );
+          if (res.ok !== true) {
+            return { title: "TTS failed", output: String(res.error ?? "unknown") };
+          }
+          const dur = Number(res.duration_s ?? 0).toFixed(2);
+          const out = `Spoken (${dur}s, ${String(res.sample_rate)} Hz).\nWAV: ${wav}`;
+          return { title: "TTS spoken", output: out };
+        },
+      },
+      voice_control: {
+        description:
+          "Manage the voice interface: switch voice mode (auto/manual/off), inspect status, " +
+          "or change voice settings (push-to-talk key, STT model, TTS voice, wake word, languages).",
+        args: {
+          action: z
+            .enum([
+              "status",
+              "auto",
+              "manual",
+              "off",
+              "cycle",
+              "set",
+            ])
+            .describe(
+              "status=current settings; auto/manual/off=switch mode; cycle=next mode; set=change a setting via optional args"
+            ),
+          pushToTalkKey: z
+            .string()
+            .optional()
+            .describe('Keyboard shortcut for manual mode, e.g. "ctrl+r" (use with action "set")'),
+          sttModel: z
+            .string()
+            .optional()
+            .describe("Speech-to-text model name (use with action \"set\")"),
+          ttsVoice: z
+            .string()
+            .optional()
+            .describe("Text-to-speech voice name, e.g. fa_IR-gyro-medium (use with action \"set\")"),
+          wakeWord: z
+            .string()
+            .optional()
+            .describe('Comma-separated wake words, e.g. "hey jarvis, jarvis" (use with action "set")'),
+          language: z
+            .string()
+            .optional()
+            .describe("Primary language tag, e.g. fa-IR or en-US (use with action \"set\")"),
+        },
+        async execute({ action, pushToTalkKey, sttModel, ttsVoice, wakeWord, language }): Promise<ToolResult> {
+          const state = loadState();
 
-    // Voice mode commands
-    const modeCommands = [
-      {
-        title: "Voice: Toggle AUTO Mode",
-        value: "voice.auto",
-        description: "Enable always-listening mode with VAD (voice activity detection)",
-        keybind: "ctrl+shift+a",
-        slash: { name: "auto-voice-mode" },
-        onSelect() {
-          const currentMode = modeManager.getMode();
-          const newMode = currentMode === "auto" ? "off" : "auto";
-          modeManager.setMode(newMode);
-          kv.set("voice.mode", newMode);
-          api.ui.toast({ 
-            message: `Voice mode: ${newMode.toUpperCase()}`, 
-            variant: newMode === "off" ? "warning" : "success",
-            duration: 3000 
-          });
-        },
-      },
-      {
-        title: "Voice: Toggle MANUAL Mode",
-        value: "voice.manual",
-        description: "Enable push-to-talk mode (press key to record)",
-        keybind: "ctrl+shift+m",
-        slash: { name: "manual-voice-mode" },
-        onSelect() {
-          const currentMode = modeManager.getMode();
-          const newMode = currentMode === "manual" ? "off" : "manual";
-          modeManager.setMode(newMode);
-          kv.set("voice.mode", newMode);
-          api.ui.toast({ 
-            message: `Voice mode: ${newMode.toUpperCase()}`, 
-            variant: newMode === "off" ? "warning" : "success",
-            duration: 3000 
-          });
-        },
-      },
-      {
-        title: "Voice: Cycle Mode",
-        value: "voice.cycle",
-        description: "Cycle through OFF → MANUAL → AUTO → OFF",
-        keybind: "ctrl+shift+v",
-        slash: { name: "voice-mode" },
-        onSelect() {
-          modeManager.toggleMode();
-          const newMode = modeManager.getMode();
-          kv.set("voice.mode", newMode);
-          api.ui.toost({ 
-            message: `Voice mode: ${newMode.toUpperCase()}`, 
-            variant: newMode === "off" ? "warning" : "success",
-            duration: 3000 
-          });
-        },
-      },
-      {
-        title: "Voice: Wake Word Settings",
-        value: "voice.wake-word",
-        description: "Configure wake word detection",
-        slash: { name: "voice-wake-word" },
-        async onSelect() {
-          const config = modeManager.getConfig();
-          const engine = await api.ui.dialog.select({
-            title: "Wake Word Engine",
-            current: config.wakeWord.engine,
-            options: [
-              { title: "Disabled", value: "disabled", description: "No wake word detection" },
-              { title: "openwakeword (ONNX)", value: "openwakeword", description: "Local ONNX model, private" },
-              { title: "Porcupine", value: "porcupine", description: "Picovoice engine (requires license)" }
-            ].map(o => ({ ...o, onSelect: () => {
-              config.wakeWord.engine = o.value;
-              modeManager.updateConfig({ wakeWord: config.wakeWord });
-              kv.set("voice.wakeWord.engine", o.value);
-            }}))
-          });
-          if (!engine) return;
-          config.wakeWord.engine = engine;
-          
-          if (engine !== "disabled") {
-            const keywords = await api.ui.dialog.input({
-              title: "Wake Keywords (comma-separated)",
-              placeholder: "hey jarvis, jarvis, بیدار شو",
-              value: config.wakeWord.keywords.join(", ")
-            });
-            if (keywords) {
-              config.wakeWord.keywords = keywords.split(",").map(k => k.trim());
-              modeManager.updateConfig({ wakeWord: config.wakeWord });
-              kv.set("voice.wakeWord.keywords", config.wakeWord.keywords);
+          switch (action) {
+            case "status": {
+              return { title: `Voice mode: ${state.mode}`, output: describeState(state) };
             }
-
-            const sensitivity = await api.ui.dialog.input({
-              title: "Sensitivity (0.0 - 1.0)",
-              placeholder: "0.6",
-              value: config.wakeWord.sensitivity.toString()
-            });
-            if (sensitivity) {
-              config.wakeWord.sensitivity = parseFloat(sensitivity);
-              modeManager.updateConfig({ wakeWord: config.wakeWord });
-              kv.set("voice.wakeWord.sensitivity", config.wakeWord.sensitivity);
+            case "auto": {
+              state.mode = "auto";
+              saveState(state);
+              return "Voice mode switched to AUTO (continuous listening with VAD).";
+            }
+            case "manual": {
+              state.mode = "manual";
+              saveState(state);
+              return `Voice mode switched to MANUAL (push-to-talk: ${state.pushToTalkKey}).`;
+            }
+            case "off": {
+              state.mode = "off";
+              saveState(state);
+              return "Voice mode OFF (no listening, no speaking).";
+            }
+            case "cycle": {
+              const modes: VoiceMode[] = ["off", "manual", "auto"];
+              state.mode = modes[(modes.indexOf(state.mode) + 1) % modes.length];
+              saveState(state);
+              return `Voice mode switched to ${state.mode.toUpperCase()}.`;
+            }
+            case "set": {
+              const changed: string[] = [];
+              if (pushToTalkKey !== undefined) {
+                state.pushToTalkKey = pushToTalkKey;
+                changed.push(`pushToTalkKey=${pushToTalkKey}`);
+              }
+              if (sttModel !== undefined) {
+                state.sttModel = sttModel;
+                changed.push(`sttModel=${sttModel}`);
+              }
+              if (ttsVoice !== undefined) {
+                state.ttsVoice = ttsVoice;
+                changed.push(`ttsVoice=${ttsVoice}`);
+              }
+              if (wakeWord !== undefined) {
+                state.wakeWordKeywords = wakeWord.split(",").map((k) => k.trim()).filter(Boolean);
+                state.wakeWordEngine = state.wakeWordKeywords.length > 0 ? "openwakeword" : "disabled";
+                changed.push(`wakeWord=[${state.wakeWordKeywords.join(", ")}]`);
+              }
+              if (language !== undefined) {
+                state.primaryLang = language;
+                changed.push(`language=${language}`);
+              }
+              if (changed.length === 0) {
+                return "Nothing to change. Provide at least one of: pushToTalkKey, sttModel, ttsVoice, wakeWord, language.";
+              }
+              saveState(state);
+              return `Updated: ${changed.join(", ")}\n${describeState(state)}`;
             }
           }
-          
-          api.ui.toast({ message: "Wake word settings updated", variant: "success" });
         },
       },
-      {
-        title: "Voice: AUTO Mode Settings",
-        value: "voice.auto-settings",
-        description: "Configure VAD sensitivity and auto-submit behavior",
-        slash: { name: "voice-auto-settings" },
-        async onSelect() {
-          const config = modeManager.getConfig();
-          
-          const vadSensitivity = await api.ui.dialog.input({
-            title: "VAD Sensitivity (0.0 - 1.0)",
-            placeholder: "0.5",
-            value: config.auto.vadSensitivity.toString()
-          });
-          if (vadSensitivity) {
-            config.auto.vadSensitivity = parseFloat(vadSensitivity);
-            kv.set("voice.auto.vadSensitivity", config.auto.vadSensitivity);
-          }
-
-          const minSpeech = await api.ui.dialog.input({
-            title: "Min Speech Duration (ms)",
-            placeholder: "500",
-            value: config.auto.minSpeechDuration.toString()
-          });
-          if (minSpeech) {
-            config.auto.minSpeechDuration = parseInt(minSpeech);
-            kv.set("voice.auto.minSpeechDuration", config.auto.minSpeechDuration);
-          }
-
-          const maxSilence = await api.ui.dialog.input({
-            title: "Max Silence Before Submit (ms)",
-            placeholder: "2000",
-            value: config.auto.maxSilenceDuration.toString()
-          });
-          if (maxSilence) {
-            config.auto.maxSilenceDuration = parseInt(maxSilence);
-            kv.set("voice.auto.maxSilenceDuration", config.auto.maxSilenceDuration);
-          }
-
-          const autoSubmit = await api.ui.dialog.confirm({
-            title: "Auto-submit after transcription?",
-            message: "Automatically submit the prompt after transcription in AUTO mode"
-          });
-          config.auto.autoSubmit = autoSubmit;
-          kv.set("voice.auto.autoSubmit", autoSubmit);
-
-          const continuous = await api.ui.dialog.confirm({
-            title: "Continuous listening?",
-            message: "Keep listening after each transcription in AUTO mode"
-          });
-          config.auto.continuousListening = continuous;
-          kv.set("voice.auto.continuousListening", continuous);
-
-          modeManager.updateConfig({ auto: config.auto });
-          api.ui.toast({ message: "AUTO mode settings updated", variant: "success" });
-        },
-      },
-      {
-        title: "Voice: MANUAL Mode Settings",
-        value: "voice.manual-settings",
-        description: "Configure push-to-talk key and behavior",
-        slash: { name: "voice-manual-settings" },
-        async onSelect() {
-          const config = modeManager.getConfig();
-          
-          const key = await api.ui.dialog.input({
-            title: "Push-to-Talk Key",
-            placeholder: "ctrl+r",
-            value: config.manual.pushToTalkKey
-          });
-          if (key) {
-            config.manual.pushToTalkKey = key;
-            kv.set("voice.manual.pushToTalkKey", key);
-          }
-
-          const holdToTalk = await api.ui.dialog.confirm({
-            title: "Hold-to-talk mode?",
-            message: "Hold key to record, release to stop (vs toggle)"
-          });
-          config.manual.holdToTalk = holdToTalk;
-          kv.set("voice.manual.holdToTalk", holdToTalk);
-
-          modeManager.updateConfig({ manual: config.manual });
-          api.ui.toast({ message: "MANUAL mode settings updated", variant: "success" });
-        },
-      },
-      {
-        title: "Voice: Status",
-        value: "voice.status",
-        description: "Show current voice mode status",
-        slash: { name: "voice-status" },
-        onSelect() {
-          const config = modeManager.getConfig();
-          const mode = modeManager.getMode();
-          const voices = kv.get("tts.voice") || "default";
-          const sttModel = kv.get("stt.model") || "shenava-koochik-int8";
-          
-          const status = [
-            `🎤 Voice Mode: ${mode.toUpperCase()}`,
-            `🗣️ TTS Voice: ${voices}`,
-            `🎧 STT Model: ${sttModel}`,
-            `🔊 Wake Word: ${config.wakeWord.engine === "disabled" ? "OFF" : config.wakeWord.engine} (${config.wakeWord.keywords.join(", ")})`,
-            `🎯 AUTO: VAD=${config.auto.vadSensitivity}, Submit=${config.auto.autoSubmit}`,
-            `⌨️ MANUAL: Key=${config.manual.pushToTalkKey}, Hold=${config.manual.holdToTalk}`
-          ].join("\n");
-          
-          api.ui.dialog.info({
-            title: "Voice Status",
-            message: status
-          });
-        },
-      },
-      {
-        title: "Voice: Mixed Language Config",
-        value: "voice.mixed-lang",
-        description: "Configure mixed-language (Persian + English) synthesis",
-        slash: { name: "voice-mixed-lang" },
-        async onSelect() {
-          const primary = await api.ui.dialog.select({
-            title: "Primary Language",
-            current: "en-US",
-            options: [
-              { title: "English (US)", value: "en-US" },
-              { title: "Persian (Farsi)", value: "fa-IR" },
-              { title: "English (UK)", value: "en-GB" }
-            ].map(o => ({ ...o, onSelect: () => {} }))
-          });
-          
-          const secondary = await api.ui.dialog.input({
-            title: "Secondary Languages (comma-separated)",
-            placeholder: "fa-IR,en-US",
-            value: "fa-IR"
-          });
-          
-          const enInFa = await api.ui.dialog.select({
-            title: "English words in Persian text",
-            current: "pronounce",
-            options: [
-              { title: "Pronounce with Persian accent", value: "pronounce", description: "API -> اے پی آئی" },
-              { title: "Spell out", value: "spell", description: "API -> اے پی آی" },
-              { title: "Keep as-is", value: "keep" }
-            ].map(o => ({ ...o, onSelect: () => {} }))
-          });
-          
-          api.ui.toast({ message: "Mixed language settings saved", variant: "success" });
-        },
-      }
-    ];
-
-    // Register all commands
-    const sttCommandsResult = registerSTT(api, kv, complete, prompts, options, logger);
-    const ttsCommandsResult = registerTTS(api, kv, complete, prompts, logger);
-    const modeCommandsWithHandler = modeCommands.map(cmd => ({
-      ...cmd,
-      onSelect: cmd.onSelect
-    }));
-
-    api.command.register(() => [...sttCommandsResult, ...ttsCommandsResult, ...modeCommandsWithHandler]);
-  },
-};
-
-// Configuration helpers
-export interface VoiceConfig {
-  mode: "auto" | "manual" | "off";
-  stt: {
-    provider: string;
-    model: string;
-    language: string;
-    endpoint?: string;
-    apiModel?: string;
-    apiKeyEnv?: string;
+    },
   };
-  tts: {
-    provider: string;
-    model: string;
-    voice: string;
-    language: string;
-  };
-  mixedLanguage: {
-    enabled: boolean;
-    primaryLang: string;
-    secondaryLangs: string[];
-    defaultVoicePerLang: Record<string, string>;
-    enInFaStrategy: "spell" | "pronounce" | "keep";
-    faInEnStrategy: "transliterate" | "pronounce" | "keep";
-  };
-  wakeWord: {
-    engine: "openwakeword" | "porcupine" | "disabled";
-    keywords: string[];
-    sensitivity: number;
-  };
-  mode: {
-    current: "auto" | "manual" | "off";
-    auto: {
-      vadSensitivity: number;
-      minSpeechDuration: number;
-      maxSilenceDuration: number;
-      autoSubmit: boolean;
-      continuousListening: boolean;
-    };
-    manual: {
-      pushToTalkKey: string;
-      holdToTalk: boolean;
-      doubleTapTimeout: number;
-    };
-  };
+
+  return hooks;
 }

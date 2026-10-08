@@ -9,12 +9,12 @@ import os from "node:os";
 
 export interface MixedLangOptions {
   enabled: boolean;
-  primaryLang: string;                    // Default: "en-US"
-  secondaryLangs: string[];               // ["fa-IR"]
-  defaultVoicePerLang: Record<string, string>;  // lang -> voiceId
-  enInFaStrategy: "spell" | "pronounce" | "keep" | "transliterate";  // How to handle English in Persian text
-  faInEnStrategy: "transliterate" | "pronounce" | "keep";             // How to handle Persian in English text
-  customRules: Record<string, string>;    // User-defined word replacements
+  primaryLang: string;
+  secondaryLangs: string[];
+  defaultVoicePerLang: Record<string, string>;
+  enInFaStrategy: "spell" | "pronounce" | "keep" | "transliterate";
+  faInEnStrategy: "transliterate" | "pronounce" | "keep";
+  customRules: Record<string, string>;
   segmentStrategy: "per-sentence" | "per-word" | "single-voice";
 }
 
@@ -41,11 +41,11 @@ const DEFAULT_OPTIONS: MixedLangOptions = {
   segmentStrategy: "per-sentence"
 };
 
-// Persian digits and numbers
 const PERSIAN_DIGITS = ["۰", "۱", "۲", "۳", "۴", "۵", "۶", "۷", "۸", "۹"];
 const ARABIC_DIGITS = ["٠", "١", "٢", "٣", "٤", "٥", "٦", "٧", "٨", "٩"];
 
 // Common English tech terms that should be pronounced in Persian context
+// Deduplicated - each key appears only once
 const TECH_TERMS_PERSIAN_PRONUNCIATION: Record<string, string> = {
   "API": "اے پی آئی",
   "GitHub": "گیت‌هاب",
@@ -115,8 +115,6 @@ const TECH_TERMS_PERSIAN_PRONUNCIATION: Record<string, string> = {
   "Edge": "اِج",
   "GitLab": "گیت‌لب",
   "Bitbucket": "بیت‌باکت",
-  "Docker": "داکر",
-  "Kubernetes": "کوبِرنتیز",
   "Terraform": "ترافرم",
   "Ansible": "آنسیبل",
   "Prometheus": "پروتئوس",
@@ -126,7 +124,6 @@ const TECH_TERMS_PERSIAN_PRONUNCIATION: Record<string, string> = {
   "PostgreSQL": "پستگرس‌کیو‌ال",
   "MySQL": "مای‌اس‌کیو‌ال",
   "MongoDB": "مینگو‌دی‌بی",
-  "GraphQL": "گراف‌کیو‌ال",
   "gRPC": "جی‌آر‌پی‌سی",
   "WebAssembly": "وب‌اسمبلی",
   "Rust": "راست",
@@ -161,7 +158,6 @@ const TECH_TERMS_PERSIAN_PRONUNCIATION: Record<string, string> = {
   "Sequelize": "سیکوئل‌آیز",
   "Mongoose": "منگوس",
   "Socket.io": "ساکت‌آی‌او",
-  "GraphQL": "گراف‌کیو‌ال",
   "Apollo": "اپولو",
   "Relay": "ریل",
   "URQL": "یو‌آر‌کیو‌ال",
@@ -177,7 +173,6 @@ const TECH_TERMS_PERSIAN_PRONUNCIATION: Record<string, string> = {
   "Solid": "سولید",
   "Svelte": "سلوت",
   "Vue": "ویو",
-  "Nuxt": "ناکست",
   "Astro": "آسترو",
   "Remix": "رِمِکس",
   "Gatsby": "گتسبی",
@@ -234,7 +229,6 @@ const TECH_TERMS_PERSIAN_PRONUNCIATION: Record<string, string> = {
   "WebGL": "وب‌جی‌ال",
   "WebGPU": "وب‌جی‌پی‌یو",
   "WASM": "وَسم",
-  "WebAssembly": "وب‌اسمبلی",
   "LLVM": "اِل‌ال‌وی‌ام",
   "Clang": "کلاَنگ",
   "GCC": "جی‌سی‌سی",
@@ -256,7 +250,7 @@ const TECH_TERMS_PERSIAN_PRONUNCIATION: Record<string, string> = {
   "Result": "رِزالت",
   "Vec": "وَک",
   "HashMap": "هش‌مپ",
-  "BTreeMap": "بی‌ตรี‌مپ",
+  "BTreeMap": "بی‌تری‌مپ",
   "String": "استرینگ",
   "str": "اِستر",
   "Box": "باکس",
@@ -312,79 +306,7 @@ const TECH_TERMS_PERSIAN_PRONUNCIATION: Record<string, string> = {
   "Freeze": "فریز",
   "Frozen": "فرَزن",
   "Pin": "پین",
-  "Unpin": "اَن‌پین",
-  "Pointer": "پوینتر",
-  "Reference": "رفِرِنس",
-  "RawPointer": "راو‌پوینتر",
-  "Function": "فانکشن",
-  "Closure": "کلُجر",
-  "Fn": "اِفِن",
-  "FnMut": "اِفِن‌مَت",
-  "FnOnce": "اِفِن-اُنس",
-  "Generator": "جِِنِرِیتِر",
-  "AsyncGenerator": "اِسنِک‌جِِنِرِیتِر",
-  "Stream": "استریم",
-  "Sink": "سِنک",
-  "Future": "فیوچِر",
-  "Poll": "پُل",
-  "Context": "کانِتِکست",
-  "Waker": "وِیکِر",
-  "Task": "تسک",
-  "Executor": "اِگزِکیوتِر",
-  "Runtime": "ران‌تایم",
-  "Blocking": "بلاکینگ",
-  "Spawn": "اسپان",
-  "JoinHandle": "جُوینِهَندل",
-  "AbortHandle": "اَبُرتِهَندل",
-  "AbortRegistration": "اَبُرت‌رِجِسترِیشِن",
-  "LocalSet": "لُکِل‌ست",
-  "Enter": "اِنتِر",
-  "Exit": "اِگزِت",
-  "Park": "پارک",
-  "Unpark": "اَن‌پارک",
-  "Coop": "کُپ",
-  "Budget": "بَجِت",
-  "Yield": "ییلد",
-  "Ready": "رِدی",
-  "Pending": "پِندینگ",
-  "Poll": "پُل",
-  "Context": "کانِتِکست",
-  "Waker": "وِیکِر",
-  "Wake": "وِیک",
-  "WakeByRef": "وِیک‌بَای‌رِف",
-  "Clone": "کلون",
-  "Copy": "کپی",
-  "PartialEq": "پارشیال‌اِک‌یو",
-  "Eq": "اِک‌یو",
-  "Hash": "هش",
-  "Debug": "دیباگ",
-  "Display": "دِسپلی",
-  "Default": "دیفالت",
-  "From": "فرام",
-  "Into": "اِنتُ",
-  "TryFrom": "ترای‌فرام",
-  "TryInto": "ترای‌اِنتُ",
-  "AsRef": "اِز‌رف",
-  "AsMut": "اِز‌مَت",
-  "Deref": "دیرِف",
-  "DerefMut": "دیرِف‌مَت",
-  "Borrow": "بارو",
-  "BorrowMut": "بارو‌مَت",
-  "Cow": "کاو",
-  "PhantomData": "فَنتَم‌دِیتا",
-  "NonZero": "نن‌زِرو",
-  "MaybeUninit": "مِیبِی‌اَنِینِیت",
-  "ManuallyDrop": "مَنِیوِی‌دِرَپ",
-  "Cell": "سل",
-  "Ref": "رف",
-  "UnsafeCell": "اَن‌سِیف‌سِل",
-  "Sync": "سِنک",
-  "Send": "سِند",
-  "Unpin": "اَن‌پین",
-  "Freeze": "فریز",
-  "Frozen": "فرَزن",
-  "Pin": "پین",
-  "Unpin": "اَن‌پین",
+  "Drop": "دراپ",
   "Pointer": "پوینتر",
   "Reference": "رفِرِنس",
   "RawPointer": "راو‌پوینتر",
@@ -423,7 +345,6 @@ function saveCustomRules(rules: Record<string, string>) {
 }
 
 function detectLanguage(text: string): string {
-  // Simple heuristic: check for Persian characters
   const persianChars = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/;
   const hasPersian = persianChars.test(text);
   const hasEnglish = /[a-zA-Z]/.test(text);
@@ -435,7 +356,6 @@ function detectLanguage(text: string): string {
 }
 
 function detectLanguageSegments(text: string): TextSegment[] {
-  // Split by sentence boundaries
   const sentences = text.split(/(?<=[.!?؟])\s+/);
   const segments: TextSegment[] = [];
 
@@ -443,7 +363,7 @@ function detectLanguageSegments(text: string): TextSegment[] {
     if (!sentence.trim()) continue;
 
     const lang = detectLanguage(sentence);
-    const primaryLang = lang === "mixed" ? "fa-IR" : lang; // Default to Persian for mixed
+    const primaryLang = lang === "mixed" ? "fa-IR" : lang;
     const voiceId = DEFAULT_OPTIONS.defaultVoicePerLang[primaryLang] || DEFAULT_OPTIONS.defaultVoicePerLang.auto;
 
     segments.push({
@@ -472,11 +392,9 @@ function escapeRegExp(str: string): string {
 
 function normalizeNumbers(text: string, lang: string): string {
   if (lang === "fa-IR") {
-    // Convert English digits to Persian
     return text.replace(/[0-9]/g, (d) => PERSIAN_DIGITS[parseInt(d)]);
   }
   if (lang === "en-US" || lang === "en-GB") {
-    // Convert Persian/Arabic digits to English
     return text
       .replace(/[۰-۹]/g, (d) => PERSIAN_DIGITS.indexOf(d).toString())
       .replace(/[٠-٩]/g, (d) => ARABIC_DIGITS.indexOf(d).toString());
@@ -488,39 +406,15 @@ export function processMixedLanguage(text: string, options: Partial<MixedLangOpt
   const opts = { ...DEFAULT_OPTIONS, ...options };
   const rules = { ...TECH_TERMS_PERSIAN_PRONUNCIATION, ...loadCustomRules(), ...opts.customRules };
 
-  // Apply custom rules first
   let processedText = applyCustomRules(text, rules);
-
-  // Detect segments
   const segments = detectLanguageSegments(processedText);
-
-  // Normalize numbers per segment language
   return segments.map(seg => ({
     ...seg,
     text: normalizeNumbers(seg.text, seg.language)
   }));
 }
 
-function synthesizeMixedText(
-  text: string,
-  sherpaEngine: any,
-  options: Partial<MixedLangOptions> = {}
-): Promise<AudioBuffer[]> {
-  const segments = processMixedText(text, options);
-  const audioChunks: Promise<AudioBuffer>[] = [];
-
-  for (const seg of segments) {
-    if (seg.text.trim()) {
-      audioChunks.push(
-        sherpaEngine.synthesize(seg.text, { voice: seg.voiceId, speed: 1.0 })
-      );
-    }
-  }
-
-  return Promise.all(audioChunks);
-}
-
-function concatAudio(buffers: AudioBuffer[]): AudioBuffer {
+export function concatAudio(buffers: Array<{ data: Float32Array; sampleRate: number; channels: number }>): { data: Float32Array; sampleRate: number; channels: number } {
   if (buffers.length === 0) {
     return { data: new Float32Array(0), sampleRate: 22050, channels: 1 };
   }
@@ -536,22 +430,3 @@ function concatAudio(buffers: AudioBuffer[]): AudioBuffer {
   }
   return { data: result, sampleRate, channels: 1 };
 }
-
-function playAudioBuffer(audio: AudioBuffer): Promise<void> {
-  // This would use the platform's audio playback (sox, ffplay, etc.)
-  // Implementation depends on the platform
-  return Promise.resolve();
-}
-
-export {
-  MixedLangOptions,
-  TextSegment,
-  DEFAULT_OPTIONS,
-  processMixedText,
-  synthesizeMixedText,
-  concatAudio,
-  playAudioBuffer,
-  loadCustomRules,
-  saveCustomRules,
-  TECH_TERMS_PERSIAN_PRONUNCIATION
-};
